@@ -44,7 +44,7 @@ xcodebuild \
   -configuration "$CONFIGURATION" \
   -destination "platform=macOS" \
   CONFIGURATION_BUILD_DIR="$BUILD_DIR" \
-  clean build
+  build
 
 # 4. Verify .app was produced
 if [ ! -d "$APP_PATH" ]; then
