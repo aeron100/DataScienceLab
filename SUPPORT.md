@@ -130,9 +130,11 @@ For bugs or feature requests, please [open an issue on GitHub](https://github.co
 ## General / Performance
 
 ### The app is slow with large datasets
-- DataScienceLab is optimized for datasets up to ~50,000 rows
-- For very large files, consider sampling your data before loading (e.g., use the first 10,000 rows)
-- Correlation heatmap and KNN imputation are the most computationally intensive operations
+- DataScienceLab is optimized for datasets up to **200,000 rows**
+- For datasets above 200,000 rows, consider pre-sampling before loading
+- **KNN imputation** uses a 15,000-row reference pool for large datasets — results are approximate but fast
+- **DBSCAN** automatically subsamples to 50,000 rows on large datasets and will show a note when this occurs
+- Correlation heatmap is the most visually intensive operation but uses vectorized math and remains fast at 200k rows
 
 ### The app crashes on launch
 - Ensure you are running **macOS 14.0 (Sonoma) or later**
