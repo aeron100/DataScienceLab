@@ -27,6 +27,8 @@ public enum UnsupervisedLearner {
 
     // MARK: - K-Means
 
+    private static let kMeansRowCap = 200_000
+
     private static func runKMeans(
         data: [[Double]], features: [String], hp: UnsupervisedHyperparams
     ) -> ClusterResult {
@@ -37,14 +39,26 @@ public enum UnsupervisedLearner {
             return empty(.kMeans, features: features)
         }
 
-        let (norm, _, _) = standardize(data)
+        // Subsample for very large datasets to keep centroid iterations fast
+        let (workingData, kMeansSampled): ([[Double]], Bool)
+        if n > Self.kMeansRowCap {
+            var rng = SystemRandomNumberGenerator()
+            workingData = (0..<n).shuffled(using: &rng).prefix(Self.kMeansRowCap).map { data[$0] }
+            kMeansSampled = true
+        } else {
+            workingData = data
+            kMeansSampled = false
+        }
+
+        let (norm, _, _) = standardize(workingData)
+        let wn = workingData.count
         var centroids    = kMeansPlusPlus(data: norm, k: k)
-        var labels       = [Int](repeating: 0, count: n)
+        var labels       = [Int](repeating: 0, count: wn)
 
         for _ in 0..<hp.maxIter {
             let old = labels
             // Assign each point to nearest centroid
-            for i in 0..<n {
+            for i in 0..<wn {
                 var best = 0; var bestDist = Double.infinity
                 for j in 0..<k {
                     let dist = squaredDist(norm[i], centroids[j])
@@ -55,7 +69,7 @@ public enum UnsupervisedLearner {
             if labels == old { break }
             // Update centroids
             for j in 0..<k {
-                let members = (0..<n).filter { labels[$0] == j }.map { norm[$0] }
+                let members = (0..<wn).filter { labels[$0] == j }.map { norm[$0] }
                 guard !members.isEmpty else { continue }
                 centroids[j] = (0..<d).map { dim in
                     members.map { $0[dim] }.reduce(0, +) / Double(members.count)
@@ -63,14 +77,19 @@ public enum UnsupervisedLearner {
             }
         }
 
-        let inertia  = (0..<n).reduce(0.0) { $0 + squaredDist(norm[$1], centroids[labels[$1]]) }
-        let silScore = n <= 2000 ? silhouette(data: norm, labels: labels, k: k) : nil
+        let inertia  = (0..<wn).reduce(0.0) { $0 + squaredDist(norm[$1], centroids[labels[$1]]) }
+        let silScore = wn <= 2000 ? silhouette(data: norm, labels: labels, k: k) : nil
         let (pts, xl, yl) = project2D(data: norm, labels: labels, features: features)
+
+        let kMeansNote = kMeansSampled
+            ? "Ran on \(Self.kMeansRowCap.formatted()) of \(n.formatted()) rows (subsampled)"
+            : nil
 
         return ClusterResult(
             algorithm: .kMeans, labels: labels, nClusters: k,
             inertia: inertia, silhouette: silScore, noiseCount: 0,
-            points2D: pts, xLabel: xl, yLabel: yl, features: features)
+            points2D: pts, xLabel: xl, yLabel: yl, features: features,
+            samplingNote: kMeansNote)
     }
 
     private static func kMeansPlusPlus(data: [[Double]], k: Int) -> [[Double]] {
