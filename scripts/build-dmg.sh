@@ -55,7 +55,18 @@ fi
 
 echo "==> App built at: $APP_PATH"
 
-# 5. Create staging folder for DMG contents
+# 5. Re-sign with Developer ID to strip get-task-allow and enable Hardened Runtime
+echo "==> Re-signing with Developer ID Application..."
+ENTITLEMENTS="$ROOT_DIR/DataScienceLab/DataScienceLab-Release.entitlements"
+codesign --force --deep --sign "Developer ID Application: Aeron Zentner (MM6HKCA27T)" \
+  --entitlements "$ENTITLEMENTS" \
+  --options runtime \
+  --timestamp \
+  "$APP_PATH"
+echo "==> Verifying signature..."
+codesign --verify --deep --strict "$APP_PATH" && echo "    Signature OK"
+
+# 7. Create staging folder for DMG contents
 echo "==> Staging DMG contents..."
 rm -rf "$STAGING_DIR"
 mkdir -p "$STAGING_DIR"
